@@ -6,13 +6,38 @@ var UUID = require('uuid');
 var doc = yaml.safeLoad(fs.readFileSync('base.yml', 'utf8'));
 var graph = [];
 
+// TODO reuse terms from existing vocabs like schema.org
+var context = {
+  '@vocab': 'http://ns.whocontrolsit.com/#',
+  'schema': 'http://schema.org/',
+  'id': '@id',
+  'type': '@type',
+  'name': 'schema:name',
+  'sameAs': 'schema:sameAs',
+  'control': { "@type": "@id", "@container": "@set" }
+};
+
+var prefixes = {
+  entities: 'http://alpha.whocontrolsit.com/entities/',
+  relationships: 'http://alpha.whocontrolsit.com/relationships/'
+};
+
+function entityUri(id) {
+  return prefixes.entities + id;
+}
+
+function relationshipUri(id) {
+  return prefixes.relationships + id;
+}
+
 // get entities
 doc.forEach(function(tuple){
   var record = tuple[1];
   var obj = {
-    id: tuple[0],
+    id: entityUri(tuple[0]),
     type: record[':entity_type'],
-    name: record[':name']
+    name: record[':name'],
+    control: []
   };
   if(record[':notes']) obj.notes = record[':notes'];
   if(record[':jurisdiction']) obj.jurisdiction = record[':jurisdiction'];
@@ -23,6 +48,24 @@ doc.forEach(function(tuple){
 });
 
 // get relationships
+doc.forEach(function(tuple){
+  var record = tuple[1];
+  if(record[':parent']){
+    var obj = {
+      id: relationshipUri(UUID.v4()),
+      type: record[':relationship_type'].replace(' ', ''),
+      percentage: Number(record[':details'])
+    };
+    var parent = _.find(graph, function(entity){ return entity.id == entityUri(record[':parent']); });
+    parent.control.push(obj.id);
+    graph.push(obj);
+  }
+});
 
-console.log(graph);
+var jsonld = {
+  '@context': context,
+  '@graph': graph
+};
+
+console.log(JSON.stringify(jsonld));
 //console.log(doc);
