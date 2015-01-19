@@ -3,7 +3,7 @@ var yaml = require('js-yaml');
 var _ = require('lodash');
 var UUID = require('uuid');
 
-var doc = yaml.safeLoad(fs.readFileSync('base.yml', 'utf8'));
+var doc = yaml.safeLoad(fs.readFileSync('drc_bo.yml', 'utf8'));
 var graph = [];
 
 // TODO reuse terms from existing vocabs like schema.org
@@ -50,13 +50,26 @@ doc.forEach(function(tuple){
 // get relationships
 doc.forEach(function(tuple){
   var record = tuple[1];
+  var obj, parent;
   if(record[':parent']){
-    var obj = {
+    obj = {
       id: relationshipUri(UUID.v4()),
       type: record[':relationship_type'].replace(' ', ''),
       percentage: Number(record[':details'])
     };
-    var parent = _.find(graph, function(entity){ return entity.id == entityUri(record[':parent']); });
+    parent = _.find(graph, function(entity){ return entity.id == entityUri(record[':parent']); });
+    parent.control.push(obj.id);
+    graph.push(obj);
+  }
+  if(record[':child']){
+    obj = {
+      id: relationshipUri(UUID.v4()),
+      type: record[':relationship_type'].replace(' ', '')
+    };
+    if(record[':details']){
+      obj.percentage = Number(record[':details'].replace('%', ''));
+    }
+    parent = _.find(graph, function(entity){ return entity.id == entityUri(tuple[0]); });
     parent.control.push(obj.id);
     graph.push(obj);
   }
